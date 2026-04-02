@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Back Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root { --primary:#4f46e5; --primary-light:#6366f1; --bg:#f1f5f9; --card-bg:#fff; --text:#1e293b; --text-muted:#64748b; --border:#e2e8f0; }
+        body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; margin:0; }
+
+        .login-wrapper { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%); }
+        .login-card { background:#fff; border-radius:20px; padding:2.5rem; width:420px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+        .role-btn { padding:1.5rem; border-radius:14px; border:2px solid var(--border); cursor:pointer; transition:all 0.2s; text-align:center; }
+        .role-btn:hover { border-color:var(--primary); background:#f0f0ff; }
+        .role-btn.selected { border-color:var(--primary); background:#eef2ff; box-shadow:0 0 0 3px rgba(79,70,229,0.15); }
+        .role-btn i { font-size:2rem; display:block; margin-bottom:0.5rem; }
+
+        .navbar { background:linear-gradient(135deg,var(--primary),var(--primary-light)); }
+        .navbar-brand { font-weight:700; }
+
+        .stat-card { background:var(--card-bg); border-radius:12px; padding:1rem 1.25rem; border:1px solid var(--border); transition:transform 0.15s; }
+        .stat-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+        .stat-value { font-size:1.75rem; font-weight:700; line-height:1; }
+        .stat-label { font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
+
+        .card { border:1px solid var(--border); border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+        .card-header { background:var(--card-bg); border-bottom:1px solid var(--border); font-weight:600; }
+        .nav-tabs .nav-link { font-weight:600; color:var(--text-muted); border:none; padding:0.75rem 1.25rem; }
+        .nav-tabs .nav-link.active { color:var(--primary); border-bottom:3px solid var(--primary); background:transparent; }
+        .nav-tabs .nav-link:hover { color:var(--primary); }
+        .table th { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); border-bottom:2px solid var(--border); white-space:nowrap; }
+        .table td { vertical-align:middle; font-size:0.85rem; }
+
+        .badge-final { background:#dcfce7; color:#16a34a; }
+        .badge-intermediate { background:#fef3c7; color:#d97706; }
+        .badge-pending { background:#e0e7ff; color:#4f46e5; }
+        .badge-count { background:#6366f1; color:#fff; font-size:0.7rem; padding:2px 7px; border-radius:10px; margin-left:6px; }
+
+        .filter-bar { background:var(--card-bg); border-radius:12px; padding:1rem; border:1px solid var(--border); }
+        .filter-bar .form-control,.filter-bar .form-select { font-size:0.85rem; border-radius:8px; }
+        .modal-content { border-radius:16px; }
+        .action-btn { padding:0.25rem 0.5rem; border-radius:6px; font-size:0.8rem; }
+
+        #uploadDropZone { border:2px dashed var(--border); border-radius:12px; padding:2rem; text-align:center; transition:all 0.2s; cursor:pointer; }
+        #uploadDropZone.dragover { border-color:var(--primary); background:#eef2ff; }
+        #uploadDropZone:hover { border-color:var(--primary-light); }
+
+        .toast-container { z-index:9999; }
+        .empty-state { text-align:center; padding:3rem; color:var(--text-muted); }
+        .empty-state i { font-size:3rem; margin-bottom:1rem; display:block; }
+
+        .attempt-timeline { border-left:2px solid var(--border); padding-left:1rem; margin-left:0.5rem; }
+        .attempt-item { position:relative; padding-bottom:1rem; }
+        .attempt-item::before { content:''; position:absolute; left:-1.35rem; top:4px; width:10px; height:10px; border-radius:50%; background:var(--primary); border:2px solid white; }
+        .attempt-item.final::before { background:#16a34a; }
+
+        .queue-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; background:#f0f0ff; color:#4f46e5; }
+        .phone-link { font-family:'Courier New',monospace; font-weight:600; }
+
+        /* Sub tabs for agent */
+        .sub-tabs .nav-link { padding:0.5rem 1rem; font-size:0.9rem; }
+        .sub-tabs .nav-link .badge-count { vertical-align:middle; }
+
+        /* Manual add row */
+        .add-row-form { background:#f8fafc; border-top:2px solid var(--border); padding:1rem; }
+        .add-row-form .form-control,.add-row-form .form-select { font-size:0.82rem; padding:0.35rem 0.5rem; }
+    </style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="loginScreen" class="login-wrapper">
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <i class="bi bi-telephone-inbound fs-1 text-primary"></i>
+            <h2 class="mt-2 mb-1">Call Back Management</h2>
+            <p class="text-muted">Select your role and enter your name</p>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-6">
+                <div class="role-btn" id="roleTL" onclick="selectRole('tl')">
+                    <i class="bi bi-person-badge text-primary"></i>
+                    <div class="fw-bold">Team Leader</div>
+                    <small class="text-muted">Upload & Monitor</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="role-btn" id="roleAgent" onclick="selectRole('agent')">
+                    <i class="bi bi-headset text-success"></i>
+                    <div class="fw-bold">Agent</div>
+                    <small class="text-muted">Call & Update</small>
+                </div>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Your Name *</label>
+            <input type="text" class="form-control form-control-lg" id="loginName" placeholder="Enter your name">
+        </div>
+        <button class="btn btn-primary btn-lg w-100" id="loginBtn" onclick="doLogin()" disabled>
+            <i class="bi bi-box-arrow-in-right me-2"></i>Login
+        </button>
+    </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div id="mainApp" style="display:none;">
+    <nav class="navbar navbar-dark px-4 py-3">
+        <span class="navbar-brand"><i class="bi bi-telephone-inbound me-2"></i>Call Back Management System</span>
+        <div class="d-flex align-items-center gap-3 text-white">
+            <span><i class="bi" id="navRoleIcon"></i> <span id="navUserName" class="fw-semibold"></span>
+            <span class="badge bg-white bg-opacity-25" id="navRoleBadge"></span></span>
+            <button class="btn btn-outline-light btn-sm" onclick="doLogout()"><i class="bi bi-box-arrow-right me-1"></i>Logout</button>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 pt-3">
+        <ul class="nav nav-tabs" id="mainTabs"></ul>
+    </div>
+
+    <div class="container-fluid px-4 py-4">
+
+        <!-- ==================== DASHBOARD ==================== -->
+        <div id="tabContent-dashboard" style="display:none;">
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md"><div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total Records</div></div></div>
+                <div class="col-6 col-md"><div class="stat-card"><div class="stat-value text-primary" id="statPending">0</div><div class="stat-label">Fresh (New)</div></div></div>
+                <div class="col-6 col-md"><div class="stat-card"><div class="stat-value text-warning" id="statIntermediate">0</div><div class="stat-label">Reattempt</div></div></div>
+                <div class="col-6 col-md"><div class="stat-card"><div class="stat-value text-success" id="statFinal">0</div><div class="stat-label">Closed</div></div></div>
+                <div class="col-6 col-md"><div class="stat-card"><div class="stat-value text-info" id="statUploadedToday">0</div><div class="stat-label">Uploaded Today</div></div></div>
+                <div class="col-6 col-md"><div class="stat-card"><div class="stat-value text-danger" id="statAttemptsToday">0</div><div class="stat-label">Attempts Today</div></div></div>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card"><div class="card-header py-3"><i class="bi bi-pie-chart me-2"></i>Status Breakdown</div>
+                        <div class="card-body p-0"><table class="table mb-0"><tbody id="statusBreakdown"></tbody></table></div></div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card"><div class="card-header py-3"><i class="bi bi-diagram-3 me-2"></i>Queue Summary</div>
+                        <div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Queue</th><th>Total</th><th>Active</th></tr></thead><tbody id="queueBreakdown"></tbody></table></div></div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card"><div class="card-header py-3"><i class="bi bi-people me-2"></i>Agent Activity (Today)</div>
+                        <div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Agent</th><th>Attempts</th></tr></thead><tbody id="agentActivity"></tbody></table></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TL: UPLOAD DATA ==================== -->
+        <div id="tabContent-upload" style="display:none;">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="card">
+                        <div class="card-header py-3"><i class="bi bi-upload me-2"></i>Upload Missed Call CSV</div>
+                        <div class="card-body">
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold">Upload Date</label>
+                                    <input type="date" class="form-control" id="uploadDate" disabled>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold">Time Slot *</label>
+                                    <select class="form-select" id="uploadTimeSlot">
+                                        <option value="">Select...</option>
+                                        <option value="8-10 AM">8-10 AM</option>
+                                        <option value="10-12 PM">10-12 PM</option>
+                                        <option value="12-2 PM">12-2 PM</option>
+                                        <option value="2-4 PM">2-4 PM</option>
+                                        <option value="4-6 PM">4-6 PM</option>
+                                        <option value="6-8 PM">6-8 PM</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold">Queue (optional)</label>
+                                    <input type="text" class="form-control" id="uploadQueue" placeholder="All queues">
+                                </div>
+                            </div>
+                            <div id="uploadDropZone" onclick="document.getElementById('uploadFile').click()">
+                                <i class="bi bi-file-earmark-arrow-up fs-1 text-muted"></i>
+                                <p class="mt-2 mb-1 fw-semibold">Drop CSV here or click to browse</p>
+                                <p class="text-muted small mb-0">Auto-filters missed calls, dedup, overlap check</p>
+                                <input type="file" id="uploadFile" accept=".csv" style="display:none" onchange="handleUploadFile(this)">
+                            </div>
+                            <div id="uploadFileName" class="mt-2 text-center small text-muted"></div>
+                            <button class="btn btn-primary w-100 mt-3" id="uploadBtn" onclick="doUpload()" disabled>
+                                <i class="bi bi-upload me-1"></i>Upload & Process
+                            </button>
+                            <div id="uploadResult" class="mt-3" style="display:none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TL: MANAGE DATA (manual add + view all) ==================== -->
+        <div id="tabContent-manage" style="display:none;">
+            <div class="card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-table me-2"></i>All Callback Data <span class="text-muted fw-normal" id="manageCount"></span></span>
+                    <button class="btn btn-primary btn-sm" onclick="toggleManualAdd()"><i class="bi bi-plus-lg me-1"></i>Add Row Manually</button>
+                </div>
+
+                <!-- Manual Add Form -->
+                <div id="manualAddForm" class="add-row-form" style="display:none;">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold mb-1">Phone *</label>
+                            <input type="text" class="form-control" id="manPhone" placeholder="Phone number">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold mb-1">Queue Name *</label>
+                            <input type="text" class="form-control" id="manQueue" placeholder="Queue">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold mb-1">Missed Call Date</label>
+                            <input type="date" class="form-control" id="manMissedDate">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold mb-1">Missed Call Time</label>
+                            <input type="time" class="form-control" id="manMissedTime">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold mb-1">Time Slot</label>
+                            <select class="form-select" id="manTimeSlot">
+                                <option value="8-10 AM">8-10 AM</option>
+                                <option value="10-12 PM">10-12 PM</option>
+                                <option value="12-2 PM">12-2 PM</option>
+                                <option value="2-4 PM">2-4 PM</option>
+                                <option value="4-6 PM">4-6 PM</option>
+                                <option value="6-8 PM">6-8 PM</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-success btn-sm w-100" onclick="addManualRow()"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="p-3 border-bottom">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" id="mgSearch" placeholder="Search phone..." oninput="loadManageData()">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="mgQueue" onchange="loadManageData()">
+                                <option value="">All Queues</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="mgStatus" onchange="loadManageData()">
+                                <option value="">All Status</option>
+                                <option value="pending">Fresh (Pending)</option>
+                                <option value="DNP 1">DNP 1</option>
+                                <option value="Ask to Call Back">Ask to Call Back</option>
+                                <option value="Issue/Query Resolved">Resolved</option>
+                                <option value="Ticket Created / Update">Ticket Created</option>
+                                <option value="DNP 2">DNP 2</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="mgActive" onchange="loadManageData()">
+                                <option value="">All</option>
+                                <option value="1">Active Only</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-0" id="manageContainer">
+                    <div class="empty-state"><i class="bi bi-table"></i><h5>No data yet</h5></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TL: UPLOAD HISTORY ==================== -->
+        <div id="tabContent-history" style="display:none;">
+            <div class="card">
+                <div class="card-header py-3"><i class="bi bi-clock-history me-2"></i>Upload History</div>
+                <div class="card-body p-0" id="uploadHistoryContainer">
+                    <div class="empty-state"><i class="bi bi-clock-history"></i><h5>No uploads yet</h5></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== AGENT: 3 DATA VIEWS ==================== -->
+        <div id="tabContent-agentwork" style="display:none;">
+            <!-- Sub tabs: Fresh / Reattempt / Closed -->
+            <ul class="nav nav-tabs sub-tabs mb-3" id="agentSubTabs">
+                <li class="nav-item"><a class="nav-link active" href="#" onclick="switchAgentSub('fresh', this)"><i class="bi bi-star me-1"></i>Fresh Data<span class="badge-count" id="freshCount">0</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="#" onclick="switchAgentSub('reattempt', this)"><i class="bi bi-arrow-repeat me-1"></i>Reattempt Data<span class="badge-count bg-warning" id="reattemptCount">0</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="#" onclick="switchAgentSub('closed', this)"><i class="bi bi-check-circle me-1"></i>Closed Data<span class="badge-count bg-success" id="closedCount">0</span></a></li>
+            </ul>
+
+            <!-- Search -->
+            <div class="filter-bar mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" id="agentSearch" placeholder="Search phone..." oninput="loadAgentData()">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" id="agentQueue" onchange="loadAgentData()">
+                            <option value="">All Queues</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-0" id="agentDataContainer">
+                    <div class="empty-state"><i class="bi bi-telephone-plus"></i><h5>No data</h5></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ==================== STATUS UPDATE MODAL ==================== -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-telephone-forward me-2"></i>Update Call Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="updateCallbackId">
+                <div class="mb-3 p-3 bg-light rounded">
+                    <div class="row">
+                        <div class="col-6"><strong>Phone:</strong> <span id="updatePhone" class="phone-link"></span></div>
+                        <div class="col-6"><strong>Queue:</strong> <span id="updateQueue"></span></div>
+                        <div class="col-6 mt-1"><strong>Current:</strong> <span id="updateCurrentStatus"></span></div>
+                        <div class="col-6 mt-1"><strong>Attempts:</strong> <span id="updateAttempts"></span></div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">New Status *</label>
+                        <select class="form-select" id="updateNewStatus">
+                            <option value="">Select status...</option>
+                            <optgroup label="Intermediate (Call Again)">
+                                <option value="DNP 1">DNP 1</option>
+                                <option value="Ask to Call Back">Ask to Call Back</option>
+                            </optgroup>
+                            <optgroup label="Final (No More Calls)">
+                                <option value="Issue/Query Resolved">Issue/Query Resolved</option>
+                                <option value="Ticket Created / Update">Ticket Created / Update</option>
+                                <option value="DNP 2">DNP 2</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Notes</label>
+                        <textarea class="form-control" id="updateNotes" rows="2" placeholder="Call remarks..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitStatusUpdate()"><i class="bi bi-check-lg me-1"></i>Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attempt History Modal -->
+<div class="modal fade" id="attemptModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Attempt History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="attemptHistoryContent"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="toast" class="toast" role="alert">
+        <div class="toast-body d-flex align-items-center gap-2"><i class="bi" id="toastIcon"></i><span id="toastMsg"></span></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let currentTab = '', userRole = '', userName = '', selectedRole = '';
+let agentSub = 'fresh'; // fresh, reattempt, closed
+const FINAL = ['Issue/Query Resolved', 'Ticket Created / Update', 'DNP 2'];
+const INTERMEDIATE = ['DNP 1', 'Ask to Call Back'];
+
+// ==================== LOGIN ====================
+function selectRole(role) {
+    selectedRole = role;
+    document.getElementById('roleTL').classList.toggle('selected', role === 'tl');
+    document.getElementById('roleAgent').classList.toggle('selected', role === 'agent');
+    checkLogin();
+}
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('loginName').addEventListener('input', checkLogin);
+    const saved = JSON.parse(localStorage.getItem('cbms_session') || 'null');
+    if (saved && saved.role && saved.name) { userRole = saved.role; userName = saved.name; enterApp(); }
+});
+function checkLogin() {
+    document.getElementById('loginBtn').disabled = !(selectedRole && document.getElementById('loginName').value.trim().length >= 2);
+}
+function doLogin() {
+    userName = document.getElementById('loginName').value.trim();
+    userRole = selectedRole;
+    localStorage.setItem('cbms_session', JSON.stringify({ role: userRole, name: userName }));
+    enterApp();
+}
+function doLogout() {
+    localStorage.removeItem('cbms_session');
+    userRole = ''; userName = ''; selectedRole = '';
+    document.getElementById('loginName').value = '';
+    document.getElementById('roleTL').classList.remove('selected');
+    document.getElementById('roleAgent').classList.remove('selected');
+    document.getElementById('loginBtn').disabled = true;
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+}
+function enterApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    document.getElementById('navUserName').textContent = userName;
+    document.getElementById('navRoleIcon').className = userRole === 'tl' ? 'bi bi-person-badge' : 'bi bi-headset';
+    document.getElementById('navRoleBadge').textContent = userRole === 'tl' ? 'Team Leader' : 'Agent';
+    const dateInput = document.getElementById('uploadDate');
+    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+    buildTabs();
+    loadQueueOptions();
+    setupUploadDragDrop();
+}
+
+// ==================== TABS ====================
+function buildTabs() {
+    const el = document.getElementById('mainTabs');
+    let tabs = [{ id:'dashboard', icon:'bi-speedometer2', label:'Dashboard' }];
+    if (userRole === 'tl') {
+        tabs.push({ id:'upload', icon:'bi-upload', label:'Upload CSV' });
+        tabs.push({ id:'manage', icon:'bi-table', label:'Manage Data' });
+        tabs.push({ id:'history', icon:'bi-clock-history', label:'Upload History' });
+    } else {
+        tabs.push({ id:'agentwork', icon:'bi-headset', label:'My Work' });
+    }
+    el.innerHTML = tabs.map((t, i) =>
+        `<li class="nav-item"><a class="nav-link ${i===0?'active':''}" href="#" onclick="switchTab('${t.id}',this)"><i class="bi ${t.icon} me-1"></i>${t.label}</a></li>`
+    ).join('');
+    switchTab(tabs[0].id, el.querySelector('.nav-link'));
+}
+function switchTab(tab, el) {
+    currentTab = tab;
+    document.querySelectorAll('#mainTabs .nav-link').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.querySelectorAll('[id^="tabContent-"]').forEach(d => d.style.display = 'none');
+    const t = document.getElementById('tabContent-' + tab);
+    if (t) t.style.display = 'block';
+    if (tab === 'dashboard') loadDashboard();
+    if (tab === 'manage') loadManageData();
+    if (tab === 'history') loadUploadHistory();
+    if (tab === 'agentwork') loadAgentData();
+}
+setInterval(() => { if (currentTab === 'dashboard') loadDashboard(); if (currentTab === 'agentwork') loadAgentData(); }, 30000);
+
+// ==================== DASHBOARD ====================
+async function loadDashboard() {
+    try {
+        const s = await (await fetch('/api/stats')).json();
+        document.getElementById('statTotal').textContent = s.total;
+        document.getElementById('statPending').textContent = s.pending_new;
+        document.getElementById('statIntermediate').textContent = s.intermediate;
+        document.getElementById('statFinal').textContent = s.final;
+        document.getElementById('statUploadedToday').textContent = s.uploaded_today;
+        document.getElementById('statAttemptsToday').textContent = s.attempts_today;
+        let sh = `<tr><td><span class="badge badge-pending">Fresh (Pending)</span></td><td class="fw-semibold">${s.pending_new}</td></tr>`;
+        for (const [st, c] of Object.entries(s.status_counts)) {
+            sh += `<tr><td><span class="badge badge-${FINAL.includes(st)?'final':'intermediate'}">${esc(st)}</span></td><td class="fw-semibold">${c}</td></tr>`;
+        }
+        document.getElementById('statusBreakdown').innerHTML = sh;
+        let qh = '';
+        s.queues.forEach(q => { qh += `<tr><td><span class="queue-tag">${esc(q.queue_name)}</span></td><td>${q.cnt}</td><td class="fw-semibold">${q.active_cnt}</td></tr>`; });
+        document.getElementById('queueBreakdown').innerHTML = qh || '<tr><td colspan="3" class="text-muted text-center">No data</td></tr>';
+        let ah = '';
+        s.agents_today.forEach(a => { ah += `<tr><td>${esc(a.agent_name)}</td><td class="fw-semibold">${a.total_attempts}</td></tr>`; });
+        document.getElementById('agentActivity').innerHTML = ah || '<tr><td colspan="2" class="text-muted text-center">No activity</td></tr>';
+    } catch(e) { console.error(e); }
+}
+
+// ==================== TL: MANAGE DATA ====================
+async function loadManageData() {
+    const params = new URLSearchParams();
+    const search = document.getElementById('mgSearch').value;
+    const queue = document.getElementById('mgQueue').value;
+    const status = document.getElementById('mgStatus').value;
+    const active = document.getElementById('mgActive').value;
+    if (search) params.set('search', search);
+    if (queue) params.set('queue', queue);
+    if (status) params.set('status', status);
+    if (active) params.set('active_only', active);
+
+    const data = await (await fetch('/api/callbacks?' + params)).json();
+    document.getElementById('manageCount').textContent = `(${data.length})`;
+    if (!data.length) {
+        document.getElementById('manageContainer').innerHTML = '<div class="empty-state"><i class="bi bi-table"></i><h5>No data</h5></div>';
+        return;
+    }
+    let html = `<div class="table-responsive"><table class="table table-hover mb-0">
+        <thead><tr><th>#</th><th>Upload Date</th><th>Phone</th><th>Queue</th><th>Missed Date</th><th>Missed Time</th><th>Time Slot</th><th>Status</th><th>Agent</th><th>Attempts</th><th>Last Call</th><th>Notes</th></tr></thead><tbody>`;
+    data.forEach(r => {
+        html += `<tr class="${r.is_final ? 'table-light' : ''}">
+            <td class="text-muted">${r.id}</td>
+            <td class="small">${esc(r.upload_date)}</td>
+            <td class="phone-link">${esc(r.phone)}</td>
+            <td><span class="queue-tag">${esc(r.queue_name||'-')}</span></td>
+            <td class="small">${esc(r.missed_call_date||'-')}</td>
+            <td class="small">${esc(r.missed_call_time||'-')}</td>
+            <td class="small">${esc(r.time_slot||'-')}</td>
+            <td>${statusBadge(r)}</td>
+            <td class="small">${esc(r.agent_name||'-')}</td>
+            <td class="text-center"><span class="badge bg-secondary">${r.attempt_count}</span></td>
+            <td class="small">${r.last_call_date ? esc(r.last_call_date)+' '+esc(r.last_call_time||'') : '-'}</td>
+            <td class="small text-muted" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.notes||'')}">${esc(r.notes||'-')}</td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    document.getElementById('manageContainer').innerHTML = html;
+}
+
+function toggleManualAdd() {
+    const f = document.getElementById('manualAddForm');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function addManualRow() {
+    const phone = document.getElementById('manPhone').value.trim();
+    const queue = document.getElementById('manQueue').value.trim();
+    const missedDate = document.getElementById('manMissedDate').value;
+    const missedTime = document.getElementById('manMissedTime').value;
+    const timeSlot = document.getElementById('manTimeSlot').value;
+    if (!phone) { showToast('Phone is required', 'error'); return; }
+    if (!queue) { showToast('Queue is required', 'error'); return; }
+
+    const res = await fetch('/api/manual-add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, queue_name: queue, missed_call_date: missedDate, missed_call_time: missedTime, time_slot: timeSlot, uploaded_by: userName })
+    });
+    const result = await res.json();
+    if (!res.ok) { showToast(result.error, 'error'); return; }
+    showToast('Row added successfully', 'success');
+    document.getElementById('manPhone').value = '';
+    document.getElementById('manMissedDate').value = '';
+    document.getElementById('manMissedTime').value = '';
+    loadManageData();
+}
+
+// ==================== TL: UPLOAD CSV ====================
+function setupUploadDragDrop() {
+    const zone = document.getElementById('uploadDropZone');
+    if (!zone) return;
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files.length) { document.getElementById('uploadFile').files = e.dataTransfer.files; handleUploadFile(document.getElementById('uploadFile')); }});
+}
+function handleUploadFile(input) {
+    if (input.files.length) { document.getElementById('uploadFileName').textContent = input.files[0].name; document.getElementById('uploadBtn').disabled = false; }
+}
+async function doUpload() {
+    const file = document.getElementById('uploadFile').files[0];
+    const timeSlot = document.getElementById('uploadTimeSlot').value;
+    if (!file) { showToast('Select a CSV file', 'error'); return; }
+    if (!timeSlot) { showToast('Select a time slot', 'error'); return; }
+    const fd = new FormData();
+    fd.append('file', file); fd.append('time_slot', timeSlot); fd.append('uploaded_by', userName); fd.append('queue_name', document.getElementById('uploadQueue').value.trim());
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Processing...';
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const result = await res.json();
+    btn.innerHTML = '<i class="bi bi-upload me-1"></i>Upload & Process'; btn.disabled = false;
+    const rd = document.getElementById('uploadResult'); rd.style.display = 'block';
+    if (res.ok) {
+        rd.innerHTML = `<div class="alert alert-success mb-0"><h6 class="mb-2"><i class="bi bi-check-circle me-1"></i>Upload Complete - Batch: ${esc(result.batch_id)}</h6>
+            <div class="row small"><div class="col-6"><strong class="text-success">${result.imported}</strong> imported</div>
+            <div class="col-6"><strong>${result.skipped_answered}</strong> skipped (answered)</div>
+            <div class="col-6"><strong>${result.skipped_final}</strong> skipped (closed)</div>
+            <div class="col-6"><strong>${result.skipped_active}</strong> skipped (active)</div>
+            <div class="col-6"><strong>${result.skipped_duplicate}</strong> skipped (overlap)</div>
+            <div class="col-6"><strong>${result.skipped_other}</strong> skipped (other)</div></div></div>`;
+        loadQueueOptions();
+    } else { rd.innerHTML = `<div class="alert alert-danger mb-0">${esc(result.error)}</div>`; }
+}
+
+// ==================== TL: UPLOAD HISTORY ====================
+async function loadUploadHistory() {
+    const data = await (await fetch('/api/upload-history')).json();
+    if (!data.length) { document.getElementById('uploadHistoryContainer').innerHTML = '<div class="empty-state"><i class="bi bi-clock-history"></i><h5>No uploads yet</h5></div>'; return; }
+    let html = `<div class="table-responsive"><table class="table mb-0">
+        <thead><tr><th>Batch</th><th>Upload Date</th><th>Time Slot</th><th>Queue</th><th>Records</th><th>Uploaded By</th><th>Time Range</th></tr></thead><tbody>`;
+    data.forEach(h => {
+        html += `<tr><td class="fw-semibold small">${esc(h.upload_batch)}</td><td>${esc(h.upload_date)}</td>
+            <td><span class="badge bg-primary bg-opacity-10 text-primary">${esc(h.time_slot)}</span></td>
+            <td>${h.queue_name?`<span class="queue-tag">${esc(h.queue_name)}</span>`:'All'}</td>
+            <td class="fw-semibold">${h.row_count}</td><td>${esc(h.uploaded_by)}</td>
+            <td class="text-muted">${h.source_time_start||'?'}:00 - ${h.source_time_end||'?'}:00</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    document.getElementById('uploadHistoryContainer').innerHTML = html;
+}
+
+// ==================== AGENT: 3-PANEL WORK ====================
+function switchAgentSub(sub, el) {
+    agentSub = sub;
+    document.querySelectorAll('#agentSubTabs .nav-link').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+    loadAgentData();
+}
+
+async function loadAgentData() {
+    // Load all 3 counts
+    const [freshRes, reattemptRes, closedRes] = await Promise.all([
+        fetch('/api/callbacks?active_only=1&status=pending'),
+        fetch('/api/callbacks?active_only=1&status=intermediate'),
+        fetch('/api/callbacks?status=final')
+    ]);
+    const freshAll = await freshRes.json();
+    const reattemptAll = await reattemptRes.json();
+    const closedAll = await closedRes.json();
+
+    document.getElementById('freshCount').textContent = freshAll.length;
+    document.getElementById('reattemptCount').textContent = reattemptAll.length;
+    document.getElementById('closedCount').textContent = closedAll.length;
+
+    // Now load the active sub with filters
+    const params = new URLSearchParams();
+    const search = document.getElementById('agentSearch').value;
+    const queue = document.getElementById('agentQueue').value;
+    if (search) params.set('search', search);
+    if (queue) params.set('queue', queue);
+
+    if (agentSub === 'fresh') { params.set('active_only', '1'); params.set('status', 'pending'); }
+    else if (agentSub === 'reattempt') { params.set('active_only', '1'); params.set('status', 'intermediate'); }
+    else { params.set('status', 'final'); }
+
+    const data = await (await fetch('/api/callbacks?' + params)).json();
+    const container = document.getElementById('agentDataContainer');
+
+    if (!data.length) {
+        const msgs = { fresh: 'No fresh callbacks to work on', reattempt: 'No reattempt callbacks pending', closed: 'No closed callbacks yet' };
+        container.innerHTML = `<div class="empty-state"><i class="bi bi-${agentSub==='closed'?'check-circle':'telephone-plus'}"></i><h5>${msgs[agentSub]}</h5></div>`;
+        return;
+    }
+
+    const showActions = agentSub !== 'closed';
+    let html = `<div class="table-responsive"><table class="table table-hover mb-0"><thead><tr>
+        <th>#</th><th>Phone</th><th>Queue</th><th>Missed Date/Time</th><th>Status</th>
+        <th>Attempts</th><th>Last Call</th><th>Agent</th><th>Notes</th>
+        ${showActions ? '<th>Actions</th>' : ''}
+    </tr></thead><tbody>`;
+
+    data.forEach(cb => {
+        html += `<tr>
+            <td class="text-muted">${cb.id}</td>
+            <td class="phone-link">${esc(cb.phone)}</td>
+            <td><span class="queue-tag">${esc(cb.queue_name||'-')}</span></td>
+            <td class="small">${esc(cb.missed_call_date||'')} ${esc(cb.missed_call_time||'')}</td>
+            <td>${statusBadge(cb)}</td>
+            <td class="text-center"><span class="badge bg-secondary">${cb.attempt_count}</span></td>
+            <td class="small">${cb.last_call_date ? esc(cb.last_call_date)+' '+esc(cb.last_call_time||'') : '-'}</td>
+            <td class="small">${esc(cb.agent_name||'-')}</td>
+            <td class="small text-muted" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(cb.notes||'')}">${esc(cb.notes||'-')}</td>
+            ${showActions ? `<td><div class="btn-group btn-group-sm">
+                <button class="btn btn-primary action-btn" title="Update Status" onclick="openStatusModal(${cb.id})"><i class="bi bi-telephone-forward"></i></button>
+                <button class="btn btn-outline-info action-btn" title="History" onclick="viewAttempts(${cb.id})"><i class="bi bi-clock-history"></i></button>
+            </div></td>` : ''}
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// ==================== STATUS UPDATE ====================
+async function openStatusModal(id) {
+    const cb = await (await fetch(`/api/callbacks/${id}`)).json();
+    document.getElementById('updateCallbackId').value = id;
+    document.getElementById('updatePhone').textContent = cb.phone;
+    document.getElementById('updateQueue').textContent = cb.queue_name || '-';
+    document.getElementById('updateCurrentStatus').innerHTML = statusBadge(cb);
+    document.getElementById('updateAttempts').textContent = cb.attempt_count;
+    document.getElementById('updateNewStatus').value = '';
+    document.getElementById('updateNotes').value = '';
+    new bootstrap.Modal(document.getElementById('statusModal')).show();
+}
+async function submitStatusUpdate() {
+    const id = document.getElementById('updateCallbackId').value;
+    const status = document.getElementById('updateNewStatus').value;
+    const notes = document.getElementById('updateNotes').value.trim();
+    if (!status) { showToast('Select a status', 'error'); return; }
+    const res = await fetch(`/api/callbacks/${id}/update-status`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status, agent_name: userName, notes })
+    });
+    const result = await res.json();
+    if (!res.ok) { showToast(result.error, 'error'); return; }
+    bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide();
+    showToast(`Updated to "${status}"${result.is_final?' (Closed)':''}`, 'success');
+    loadAgentData();
+}
+
+// ==================== ATTEMPT HISTORY ====================
+async function viewAttempts(id) {
+    const data = await (await fetch(`/api/callbacks/${id}/attempts`)).json();
+    const c = document.getElementById('attemptHistoryContent');
+    if (!data.length) { c.innerHTML = '<p class="text-muted text-center">No attempts yet</p>'; }
+    else {
+        let html = '<div class="attempt-timeline">';
+        data.forEach(a => {
+            const f = FINAL.includes(a.status);
+            html += `<div class="attempt-item ${f?'final':''}">
+                <div class="d-flex justify-content-between"><span class="badge ${f?'badge-final':'badge-intermediate'}">${esc(a.status)}</span><small class="text-muted">${esc(a.call_date)} ${esc(a.call_time)}</small></div>
+                <div class="small mt-1"><strong>${esc(a.agent_name)}</strong></div>
+                ${a.notes?`<div class="small text-muted mt-1">${esc(a.notes)}</div>`:''}
+            </div>`;
+        });
+        html += '</div>';
+        c.innerHTML = html;
+    }
+    new bootstrap.Modal(document.getElementById('attemptModal')).show();
+}
+
+// ==================== QUEUE OPTIONS ====================
+async function loadQueueOptions() {
+    try {
+        const queues = await (await fetch('/api/queues')).json();
+        ['wqQueue','mgQueue','agentQueue'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (sel) { sel.innerHTML = '<option value="">All Queues</option>'; queues.forEach(q => sel.innerHTML += `<option value="${esc(q)}">${esc(q)}</option>`); }
+        });
+    } catch(e) {}
+}
+
+// ==================== UTILS ====================
+function statusBadge(cb) {
+    if (!cb.current_status) return '<span class="badge badge-pending">Pending</span>';
+    if (FINAL.includes(cb.current_status)) return `<span class="badge badge-final">${esc(cb.current_status)}</span>`;
+    return `<span class="badge badge-intermediate">${esc(cb.current_status)}</span>`;
+}
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function showToast(msg, type) {
+    const t = document.getElementById('toast'), i = document.getElementById('toastIcon');
+    document.getElementById('toastMsg').textContent = msg; t.className = 'toast';
+    if (type==='success'){t.classList.add('bg-success','text-white');i.className='bi bi-check-circle-fill';}
+    else if(type==='error'){t.classList.add('bg-danger','text-white');i.className='bi bi-exclamation-circle-fill';}
+    else{t.classList.add('bg-info','text-white');i.className='bi bi-info-circle-fill';}
+    bootstrap.Toast.getOrCreateInstance(t).show();
+}
+</script>
+</body>
+</html>

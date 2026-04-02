@@ -26,5 +26,14 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Credentials
+credentials.json
+callbacks.db
+creds_base64.txt
+__pycache__/
+seed_data.py
+seed_sheets.py
+analyze_calls.py
+
 # Claude
 .claude/
